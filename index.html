@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Dither Machine</title>
+<style>
+  body { font-family: sans-serif; padding: 20px; }
+  canvas { margin-top: 20px; image-rendering: pixelated; }
+</style>
+</head>
+<body>
+<h1>Dither Machine</h1>
+
+<input type="file" id="upload" accept="image/*">
+
+<canvas id="canvas"></canvas>
+
+<script>
+document.getElementById("upload").addEventListener("change", function(e) {
+    const file = e.target.files[0];
+    const img = new Image();
+    img.onload = () => process(img);
+    img.src = URL.createObjectURL(file);
+});
+
+function process(img) {
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    canvas.width = img.width;
+    canvas.height = img.height;
+    ctx.drawImage(img, 0, 0);
+
+    let imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let d = imgData.data;
+
+    for (let i = 0; i < d.length; i += 4) {
+        let old = d[i];
+        let newVal = old < 128 ? 0 : 255;
+        let err = old - newVal;
+
+        d[i] = d[i+1] = d[i+2] = newVal;
+
+        let idx = i / 4;
+        let x = idx % canvas.width;
+        let y = Math.floor(idx / canvas.width);
+
+        setPixel(d, canvas.width, x+1, y,     err * 7/16);
+        setPixel(d, canvas.width, x-1, y+1,   err * 3/16);
+        setPixel(d, canvas.width, x,   y+1,   err * 5/16);
+        setPixel(d, canvas.width, x+1, y+1,   err * 1/16);
+    }
+
+    ctx.putImageData(imgData, 0, 0);
+}
+
+function setPixel(d, w, x, y, err) {
+    if (x < 0 || y < 0) return;
+    let i = (y * w + x) * 4;
+    if (i >= d.length) return;
+    d[i] = d[i+1] = d[i+2] = Math.min(255, Math.max(0, d[i] + err));
+}
+</script>
+</body>
+</html>
